@@ -12,28 +12,28 @@ on:
 jobs:
   apk:
     if: github.event_name != 'schedule'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         app: [primoz-app, primoz-admin]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Unzip project
         run: unzip -q primoz-projekt.zip
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: primoz-projekt/${{ matrix.app }}/package-lock.json
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
       - name: Build
         working-directory: primoz-projekt/${{ matrix.app }}
         run: |
+          echo "Android SDK: $ANDROID_HOME"
           npm ci
           npm run build
           npx cap sync android
@@ -49,7 +49,7 @@ jobs:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Ping Supabase
         run: |
           unzip -q -o primoz-projekt.zip primoz-projekt/primoz-app/.env.production
