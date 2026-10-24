@@ -1,0 +1,58 @@
+# Primož – gradnja APK iz primoz-projekt.zip + dnevni ping strežnika
+name: Primoz build
+
+on:
+  push:
+    branches: [main]
+    paths: ['primoz-projekt.zip', '.github/workflows/**']
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * *'
+
+jobs:
+  apk:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [primoz-app, primoz-admin]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip project
+        run: unzip -q primoz-projekt.zip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: primoz-projekt/${{ matrix.app }}/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - name: Build
+        working-directory: primoz-projekt/${{ matrix.app }}
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-apk
+          path: primoz-projekt/${{ matrix.app }}/android/app/build/outputs/apk/release/*.apk
+
+  keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ping Supabase
+        run: |
+          unzip -q -o primoz-projekt.zip primoz-projekt/primoz-app/.env.production
+          set -a; . primoz-projekt/primoz-app/.env.production; set +a
+          curl -sS -X POST "$VITE_SUPABASE_URL/rest/v1/rpc/app_check" -H "apikey: $VITE_SUPABASE_ANON_KEY" -H 'Content-Type: application/json' \
+            -d '{"p_payload":"{}","p_sig":"0000000000000000000000000000000000000000000000000000000000000000"}'
