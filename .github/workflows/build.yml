@@ -30,6 +30,17 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      - name: Popravek admin build.gradle (odvečen zaklepaj v ZIP v1)
+        if: matrix.app == 'primoz-admin'
+        run: |
+          python3 - <<'PY'
+          p = 'primoz-projekt/primoz-admin/android/app/build.gradle'
+          s = open(p).read()
+          bad = "    }\n}\n\n}\n\nrepositories {"
+          if bad in s:
+              open(p, 'w').write(s.replace(bad, "    }\n}\n\nrepositories {"))
+              print('popravljeno')
+          PY
       - name: Build
         working-directory: primoz-projekt/${{ matrix.app }}
         run: |
