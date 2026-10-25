@@ -52,13 +52,14 @@ end $$;
 
 create or replace function public.app_catalog_search(p_payload text, p_sig text)
 returns jsonb language plpgsql security definer set search_path = public as $$
-declare v_ok boolean; v_err text; v_dev app_devices; v_acc app_accounts; v_data jsonb;
+declare v_ok boolean; v_err text; v_dev_status text; v_acc_disabled boolean; v_data jsonb;
         v_q text; v_limit int;
 begin
-  select ok, err, dev, acc, data into v_ok, v_err, v_dev, v_acc, v_data
+  select ok, err, (dev).status, (acc).disabled, data
+    into v_ok, v_err, v_dev_status, v_acc_disabled, v_data
     from app_private.verify(p_payload, p_sig, 'catalog_search');
   if not v_ok then return jsonb_build_object('ok', false, 'error', v_err); end if;
-  if v_acc.disabled or v_dev.status <> 'active' or (select locked from app_config where id=1) then
+  if v_acc_disabled or v_dev_status <> 'active' or (select locked from app_config where id=1) then
     return jsonb_build_object('ok', false, 'error', 'forbidden');
   end if;
   v_q := left(trim(coalesce(v_data->>'q','')), 100);
